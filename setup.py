@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
+from baleotp.version import __version__
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
     name="baleotp",
-    version="0.0.2",
+    version=__version__,
     author="Ali NabiPour",
     author_email="noyan.joun.89@gmail.com",
     description="Async client for sending OTPs via Bale API",
