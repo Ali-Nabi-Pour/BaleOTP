@@ -12,7 +12,7 @@ from baleotp.exceptions import (
 
 @pytest.mark.asyncio
 async def test_fetch_token_success():
-    client = OTPClient("GFrZtHCyvyqsoHWrSQSLbDgXTreaqeDe", "hCqdSuhsUFwrgshPNTURdHDgnnSxYSwU")
+    client = OTPClient("Your_UserName", "Your_PassWord")
 
     with patch.object(client._http_session, 'post', new_callable=AsyncMock) as mock_post:
         mock_response = AsyncMock()
@@ -69,6 +69,6 @@ async def test_error_handling(status, error_class):
 @pytest.mark.asyncio
 async def test_normalize_phone():
     client = OTPClient("id", "secret")
-    assert client._normalize_phone("09118373115") == "989118373115"
-    assert client._normalize_phone("+989118373115") == "989118373115"
-    assert client._normalize_phone("00989118373115") == "989118373115"
+    assert client._normalize_phone("09123456789") == "989123456789"
+    assert client._normalize_phone("+989123456789") == "989123456789"
+    assert client._normalize_phone("00989123456789") == "989123456789"
