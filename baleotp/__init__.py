@@ -2,8 +2,8 @@
 # E-Mail : noyan.joun.89@gmail.com
 # GitHub : https://github.com/Ali-Nabi-Pour/baleotp
 
-from .Clinet import OTPClient
-from .Clinet import (
+from .Client import OTPClient
+from .Client import (
     InvalidClientError,
     BadRequestError,
     ServerError,
