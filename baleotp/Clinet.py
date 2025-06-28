@@ -1,245 +1,129 @@
-# import aiohttp
-# import asyncio
-# from datetime import datetime, timedelta
-# import logging
-# import re
-#
-# logger = logging.getLogger(__name__)
-# logging.basicConfig(level=logging.INFO)
-#
-#
-# class OTPClient:
-#     def __init__(self,
-#                  UserName: str,
-#                  PassWord: str,
-#                  base_url: str = "https://safir.bale.ai"
-#                  ):
-#         """
-#         ساخت کلاینت برای ارسال OTP
-#         """
-#         self.client_id = UserName
-#         self.client_secret = PassWord
-#         self.base_url = base_url.rstrip("/")
-#         self.token = None
-#         self.token_expiry = None
-#         self._token_fetched = False
-#
-#     async def _fetch_token(self):
-#         """
-#         دریافت توکن از سرویس دهنده
-#         """
-#         url = f"{self.base_url}/api/v2/auth/token"
-#         data = {
-#             "grant_type": "client_credentials",
-#             "client_id": self.client_id,
-#             "client_secret": self.client_secret,
-#             "scope": "read"
-#         }
-#
-#         logger.info("Requesting access token...")
-#         async with aiohttp.ClientSession() as session:
-#             async with session.post(url, data=data) as resp:
-#                 json_data = await resp.json()
-#                 if resp.status == 200:
-#                     self.token = json_data.get("access_token")
-#                     expires_in = json_data.get("expires_in", 3600)
-#                     self.token_expiry = datetime.now() + timedelta(seconds=expires_in - 30)
-#                     self._token_fetched = True
-#                     logger.info("Token acquired, expires at %s", self.token_expiry)
-#                 else:
-#                     logger.error("Failed to get token: %s", json_data)
-#                     raise Exception(f"Token fetch failed: {json_data}")
-#
-#     async def _ensure_token_valid(self):
-#         """
-#         بررسی میکنه که آیا توکن منقضی شده؟
-#         در صورت انقضاء توکن جدید جایگزین میشه
-#         """
-#         if not self._token_fetched or not self.token or datetime.now() >= self.token_expiry:
-#             logger.info("Token expired or not found. Refreshing token...")
-#             await self._fetch_token()
-#
-#     def _normalize_phone(self,
-#                          phone: str) -> str:
-#         """
-#         شماره تلفن ورودی را به فرمت استاندارد +98XXXXXXXXXX تبدیل می‌کند.
-#         فرض می‌کنیم شماره موبایل ایران است.
-#         """
-#         phone = phone.strip()
-#
-#         # حذف هر کاراکتر غیر رقمی به جز +
-#         phone = re.sub(r"[^\d+]", "", phone)
-#
-#         # اگر شماره با 98 شروع شده، قبول کن
-#         if phone.startswith("98") and len(phone) == 12:
-#             return phone
-#
-#         # اگر شماره با ۰ شروع شده، ۰ را به ۹۸ تبدیل کن
-#         if phone.startswith("0") and len(phone) == 11:
-#             return "98" + phone[1:]
-#
-#         # اگر شماره با ۹۸ شروع شده و طولش 12 است، همان را بازگردان
-#         if phone.startswith("98") and len(phone) == 12:
-#             return phone
-#
-#         # اگر فقط شماره ۱۰ رقمی بدون ۰ و کد کشور است، فرض کنیم شماره موبایل است و +98 اضافه کنیم
-#         if len(phone) == 10:
-#             return "98" + phone
-#
-#         # در غیر این صورت همان شماره را بازگردان (برای شماره‌های غیر استاندارد)
-#         return phone
-#
-#     async def _send_otp_async(self,
-#                               phone: str,
-#                               otp: int
-#                               ):
-#         await self._ensure_token_valid()
-#
-#         url = f"{self.base_url}/api/v2/send_otp"
-#         phone = self._normalize_phone(phone)
-#
-#         headers = {
-#             "Authorization": f"Bearer {self.token}",
-#             "Content-Type": "application/json"
-#         }
-#         json_data = {
-#             "phone": phone,
-#             "otp": otp
-#         }
-#
-#         logger.info("Sending OTP to %s", phone)
-#
-#         async with aiohttp.ClientSession() as session:
-#             async with session.post(url, headers=headers, json=json_data) as resp:
-#                 try:
-#                     response = await resp.json()
-#                     if resp.status == 200:
-#                         logger.info("OTP sent successfully")
-#                     else:
-#                         logger.warning("OTP send failed: %s", response)
-#                     return response
-#                 except Exception:
-#                     msg = await resp.text()
-#                     logger.error("Unexpected error: %s", msg)
-#                     return {"error": f"HTTP {resp.status}", "message": msg}
-#
-#     def send_otp(self,
-#                  phone: str,
-#                  otp: int | str
-#                  ):
-#         """
-#         ارسال کننده کد OTP
-#         """
-#         if isinstance(otp, str):
-#             otp = int(otp)
-#         try:
-#             loop = asyncio.get_running_loop()
-#             return asyncio.ensure_future(self._send_otp_async(phone, otp))
-#         except RuntimeError:
-#             return asyncio.run(self._send_otp_async(phone, otp))
 import aiohttp
 import asyncio
 from datetime import datetime, timedelta
 import logging
 import re
+import random
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-# خطا های مربوط به درخواست توکن
 class TokenError(Exception):
+    """Base class for token related errors"""
     pass
 
 
-# خطای احراز هویت نامعتبر
 class InvalidClientError(TokenError):
+    """Invalid authentication credentials"""
     pass
 
 
-# خطای پارامترهای ناقص یا اشتباه
 class BadRequestError(TokenError):
+    """Invalid or incomplete parameters"""
     pass
 
 
-# خطای سرور
 class ServerError(TokenError):
+    """Server related errors"""
     pass
 
 
-# خطا های مربوط به ارسال OTP
 class OTPError(Exception):
+    """Base class for OTP related errors"""
     pass
 
 
-# خطای شماره تلفن نامعتبر
 class InvalidPhoneNumberError(OTPError):
+    """Invalid phone number format"""
     pass
 
 
-# خطای کاربر پیدا نشد
 class UserNotFoundError(OTPError):
+    """User not found"""
     pass
 
 
-# خطای عدم موجودی کافی
 class InsufficientBalanceError(OTPError):
+    """Insufficient balance"""
     pass
 
 
-# خطای داخلی سرور
 class RateLimitExceededError(OTPError):
+    """Rate limit exceeded"""
     pass
 
 
-# خطا های غیر منتظره
 class UnexpectedResponseError(OTPError):
+    """Unexpected response from server"""
     pass
+
+
+class OTPResult:
+    """Container for OTP result with code and response data"""
+
+    def __init__(self, code: int, response: dict):
+        self.code = code
+        self.response = response
+
+    def __repr__(self):
+        return f"OTPResult(code={self.code}, response={self.response})"
 
 
 class OTPClient:
-    def __init__(self,
-                 UserName: str,
-                 PassWord: str,
-                 base_url: str = "https://safir.bale.ai"):
-        self.client_id = UserName
-        self.client_secret = PassWord
+    """Client for sending OTP codes via Bale.ai API"""
+
+    def __init__(
+            self,
+            username: str,
+            password: str,
+            base_url: str = "https://safir.bale.ai"
+    ):
+        """
+        Initialize OTP client.
+
+        Args:
+            username: API username/client_id
+            password: API password/client_secret
+            base_url: Base API URL (default: https://safir.bale.ai)
+        """
+        self.client_id = username
+        self.client_secret = password
         self.base_url = base_url.rstrip("/")
         self.token = None
         self.token_expiry = None
         self._token_fetched = False
 
-    def _normalize_phone(self,
-                         phone: str) -> str:
+    def _normalize_phone(self, phone: str) -> str:
         """
-        شماره تلفن ورودی را به فرمت استاندارد +98XXXXXXXXXX تبدیل می‌کند.
-        فرض می‌کنیم شماره موبایل ایران است.
+        Normalize phone number to standard format (+98XXXXXXXXXX)
+
+        Args:
+            phone: Input phone number in various formats
+
+        Returns:
+            Normalized phone number in +98XXXXXXXXXX format
         """
         phone = phone.strip()
 
-        # حذف هر کاراکتر غیر رقمی به جز +
+        # Remove all non-digit characters except +
         phone = re.sub(r"[^\d+]", "", phone)
 
-        # اگر شماره با 98 شروع شده، قبول کن
+        # Handle different phone number formats
         if phone.startswith("98") and len(phone) == 12:
             return phone
-
-        # اگر شماره با ۰ شروع شده، ۰ را به ۹۸ تبدیل کن
         if phone.startswith("0") and len(phone) == 11:
             return "98" + phone[1:]
-
-        # اگر شماره با ۹۸ شروع شده و طولش 12 است، همان را بازگردان
         if phone.startswith("98") and len(phone) == 12:
             return phone
-
-        # اگر فقط شماره ۱۰ رقمی بدون ۰ و کد کشور است، فرض کنیم شماره موبایل است و +98 اضافه کنیم
         if len(phone) == 10:
             return "98" + phone
 
-        # در غیر این صورت همان شماره را بازگردان (برای شماره‌های غیر استاندارد)
         return phone
 
-    async def _fetch_token(self):
+    async def _fetch_token(self) -> None:
+        """Fetch authentication token from API"""
         url = f"{self.base_url}/api/v2/auth/token"
         data = {
             "grant_type": "client_credentials",
@@ -259,41 +143,80 @@ class OTPClient:
                     if resp.status == 200 and isinstance(json_data, dict):
                         self.token = json_data.get("access_token")
                         expires_in = json_data.get("expires_in", 3600)
-                        self.token_expiry = datetime.now() + timedelta(seconds=expires_in - 30)
+                        self.token_expiry = datetime.now() + timedelta(
+                            seconds=expires_in - 30
+                        )
                         self._token_fetched = True
-                        logger.info("Token acquired, expires at %s", self.token_expiry)
+                        logger.info(
+                            "Token acquired, expires at %s",
+                            self.token_expiry
+                        )
                         return
 
                     if resp.status == 401:
                         raise InvalidClientError(
-                            json_data.get("error_description") if isinstance(json_data, dict) else str(json_data)
+                            json_data.get("error_description")
+                            if isinstance(json_data, dict)
+                            else str(json_data)
                         )
                     if resp.status == 400:
                         raise BadRequestError(str(json_data))
                     if resp.status == 500:
                         raise ServerError(
-                            json_data.get("message") if isinstance(json_data, dict) else "Internal server error"
+                            json_data.get("message")
+                            if isinstance(json_data, dict)
+                            else "Internal server error"
                         )
 
-                    raise TokenError(f"Unexpected status {resp.status}: {json_data}")
+                    raise TokenError(
+                        f"Unexpected status {resp.status}: {json_data}"
+                    )
 
                 except TokenError:
-                    raise  # همونطور که هست
+                    raise
                 except Exception as e:
                     raise TokenError(f"Token fetch failed: {e}")
                 except aiohttp.ContentTypeError:
                     msg = await resp.text()
                     raise TokenError(f"Invalid response format (non-JSON): {msg}")
 
-    async def _ensure_token_valid(self):
-        if not self._token_fetched or not self.token or datetime.now() >= self.token_expiry:
+    async def _ensure_token_valid(self) -> None:
+        """Ensure we have a valid token, fetching a new one if needed"""
+        if (
+                not self._token_fetched
+                or not self.token
+                or datetime.now() >= self.token_expiry
+        ):
             await self._fetch_token()
 
-    async def _send_otp_async(self,
-                              phone: str,
-                              otp: int):
+    def _generate_random_otp(self) -> int:
+        """Generate a random 6-digit OTP code"""
+        return random.randint(100000, 999999)
+
+    async def _send_otp_async(
+            self,
+            phone: str,
+            otp: Optional[Union[int, str]] = None
+    ) -> OTPResult:
+        """
+        Send OTP code asynchronously
+
+        Args:
+            phone: Phone number to send OTP to
+            otp: OTP code (optional, will generate if not provided)
+
+        Returns:
+            OTPResult object containing code and full response
+        """
         await self._ensure_token_valid()
         phone = self._normalize_phone(phone)
+
+        # Generate OTP if not provided
+        if otp is None:
+            otp = self._generate_random_otp()
+        elif isinstance(otp, str):
+            otp = int(otp)
+
         url = f"{self.base_url}/api/v2/send_otp"
         headers = {
             "Authorization": f"Bearer {self.token}",
@@ -309,7 +232,7 @@ class OTPClient:
                 try:
                     response = await resp.json()
                     if resp.status == 200:
-                        return response
+                        return OTPResult(code=otp, response=response)
                     elif resp.status == 400:
                         if response.get("code") == 8:
                             raise InvalidPhoneNumberError(response.get("message"))
@@ -324,21 +247,33 @@ class OTPClient:
                     elif resp.status == 402:
                         raise InsufficientBalanceError(response.get("message"))
                     elif resp.status == 500:
-                        raise ServerError(response.get("message", "Internal server error occurred"))
+                        raise ServerError(
+                            response.get("message", "Internal server error occurred")
+                        )
                     else:
-                        raise UnexpectedResponseError(f"Unexpected status code: {resp.status}, message: {response}")
+                        raise UnexpectedResponseError(
+                            f"Unexpected status code: {resp.status}, "
+                            f"message: {response}"
+                        )
                 except aiohttp.ContentTypeError:
                     msg = await resp.text()
                     raise UnexpectedResponseError(f"Non-JSON response: {msg}")
 
-    def send_otp(self,
-                 phone: str,
-                 otp: int | str):
+    def send_otp(
+            self,
+            phone: str,
+            otp: Optional[Union[int, str]] = None
+    ) -> Union[asyncio.Future, OTPResult]:
         """
-        ارسال کننده کد OTP
+        Send OTP code (synchronous wrapper)
+
+        Args:
+            phone: Phone number to send OTP to
+            otp: OTP code (optional, will generate if not provided)
+
+        Returns:
+            OTPResult object containing code and full response
         """
-        if isinstance(otp, str):
-            otp = int(otp)
         try:
             loop = asyncio.get_running_loop()
             return asyncio.ensure_future(self._send_otp_async(phone, otp))

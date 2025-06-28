@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "baleotp"
-version = "0.0.2"
+version = "0.1.0"
 description = "The first and best OTP sending package on the 'Bale' messenger"
 authors = [
     { name="Ali NabiPour", email="noyan.joun.89@gmail.com" }

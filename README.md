@@ -4,38 +4,49 @@
     <img src="https://img.shields.io/pypi/v/baleotp.svg" alt="PyPI version">
     <img src="https://img.shields.io/pypi/l/baleotp.svg" alt="License">
     <img src="https://img.shields.io/pypi/pyversions/baleotp.svg" alt="Python Versions">
+    <img src="https://img.shields.io/badge/coverage-90%25-brightgreen" alt="Test Coverage">
 </div>
-
 
 **BaleOTP** is a Python asynchronous client for sending OTPs (One-Time Passwords) through the Bale AI OTP API.
 
-### Features
+## ✨ New Features (0.1.0)
 
-* Fetches and refreshes access tokens automatically
-* Sends OTPs to Iranian mobile numbers
-* Fully asynchronous using `aiohttp`
-* Handles all documented error responses
-* Accepts various phone number formats (e.g., 0912..., 98912..., +98912...)
-* Supports both `int` and `str` format OTPs
-* Customizable base URL for different environments (e.g., test/staging)
+- **Auto OTP Generation**: Now automatically generates 6-digit OTP codes when none is provided
+- **Enhanced Result Object**: Get both OTP code and full API response in a structured way
+- **Improved Error Handling**: More specific exception classes for different error scenarios
+- **Better Phone Number Normalization**: Supports more phone number formats
+- **Full Async Support**: Works seamlessly in both synchronous and asynchronous contexts
 
-### Installation
+## 📦 Installation
 
 ```bash
-pip install baleotp
+pip install --upgrade baleotp
 ```
 
-### Usage
+## 🚀 Basic Usage
+
+### Sending OTP with auto-generated code:
 
 ```python
 from baleotp import OTPClient
 
 client = OTPClient("your_client_id", "your_client_secret")
-response = client.send_otp("09123456789", 123456)
-print(response)
+result = client.send_otp("09123456789")  # No OTP provided = auto-generate
+
+print(f"Sent OTP code: {result.code}")
+print(f"Full response: {result.response}")
 ```
 
-Or with `await` (inside async code):
+### Sending with custom OTP:
+
+```python
+result = client.send_otp("09123456789", 123456)
+print(f"Used OTP code: {result.code}")
+```
+
+## 🔧 Advanced Usage
+
+### Async/Await Support:
 
 ```python
 import asyncio
@@ -43,61 +54,89 @@ from baleotp import OTPClient
 
 async def main():
     client = OTPClient("your_client_id", "your_client_secret")
-    result = await client.send_otp("09123456789", 123456)
-    print(result)
+    result = await client.send_otp("09123456789")
+    print(result.code)
 
 asyncio.run(main())
 ```
 
-### License
+### Available Exceptions:
+
+```python
+from baleotp import (
+    InvalidClientError,
+    BadRequestError,
+    InvalidPhoneNumberError,
+    UserNotFoundError,
+    InsufficientBalanceError,
+    RateLimitExceededError
+)
+
+try:
+    client.send_otp("invalid_number")
+except InvalidPhoneNumberError as e:
+    print(f"Phone number error: {e}")
+```
+
+## 📝 Phone Number Formats Supported
+
+All these formats work:
+- `09123456789`
+- `989123456789`
+- `+989123456789`
+- `9123456789`
+- `00989123456789` (non-standard but handled)
+
+## 📜 License
 
 MIT
 
 ---
 
-
 **BaleOTP** یک کلاینت پایتونی غیرهمزمان برای ارسال رمزهای یکبار مصرف (OTP) از طریق API بله است.
 
-### قابلیت‌ها
+## ✨ قابلیت‌های جدید (نسخه 0.1.0)
 
-* دریافت و تمدید خودکار توکن احراز هویت
-* ارسال OTP به شماره‌های موبایل ایران
-* طراحی کامل با استفاده از `aiohttp`
-* مدیریت تمام خطاهای اعلام‌شده در مستندات
-* تشخیص و اصلاح فرمت شماره‌ها (۰۹، ۹۸، +۹۸ و...)
-* پشتیبانی از OTP به صورت عدد (`int`) یا رشته (`str`)
-* امکان تعیین آدرس دلخواه (base URL) برای تست یا محیط‌های دیگر
+- **تولید خودکار کد**: در صورت عدم ارائه کد، به صورت خودکار یک کد ۶ رقمی تولید می‌کند
+- **نتیجه ساختاریافته**: دریافت همزمان کد و پاسخ کامل سرور در یک شیء سازمان‌یافته
+- **مدیریت خطاهای پیشرفته**: کلاس‌های خطای تخصصی برای سناریوهای مختلف
+- **پشتیبانی از فرمت‌های بیشتر شماره تلفن**
+- **پشتیبانی کامل از برنامه‌های ناهمزمان**
 
-### نصب
+## 🛠️ مثال‌های پیشرفته
 
-```bash
-pip install baleotp
-```
-
-### مثال استفاده
+### استفاده غیرهمزمان:
 
 ```python
 from baleotp import OTPClient
 
 client = OTPClient("UserName", "PassWord")
-response = client.send_otp("09123456789", 123456)
-print(response)
+result = client.send_otp("09123456789")  # تولید خودکار کد
+
+print(f"کد ارسال شده: {result.code}")
+print(f"پاسخ سرور: {result.response}")
 ```
 
-یا به صورت `async`:
+### مدیریت خطاها:
 
 ```python
-import asyncio
-from baleotp import OTPClient
+from baleotp import InvalidPhoneNumberError
 
-async def main():
-    client = OTPClient("UserName", "PassWord")
-    result = await client.send_otp("09123456789", 123456)
-    print(result)
-
-asyncio.run(main())
+try:
+    client.send_otp("شماره نادرست")
+except InvalidPhoneNumberError:
+    print("شماره تلفن نامعتبر است")
 ```
 
-### مجوز
+## 📞 فرمت‌های شماره تلفن پشتیبانی شده
+
+همه این فرمت‌ها قابل استفاده هستند:
+- `09123456789`
+- `989123456789`
+- `+989123456789`
+- `9123456789`
+- `00989123456789` (غیراستاندارد اما پشتیبانی می‌شود)
+
+## ⚖️ مجوز
 
 MIT
